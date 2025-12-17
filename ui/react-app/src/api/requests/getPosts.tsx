@@ -10,6 +10,6 @@ export default function getPosts() {
 }
 
 const getPostsFn = async () => {
-  const res: AxiosResponse<IPost[]> = await api.get("/posts");
+  const res: AxiosResponse<IPost[]> = await api.get("/posts/");
   return res.data;
 };

@@ -20,7 +20,7 @@ export default function getCommentsForPost(
 
 const getPostsFn = async (postId: string) => {
   const res: AxiosResponse<IPostComment[]> = await api.get(
-    `/post/${postId}/comments`
+    `/post/${postId}/comments/`
   );
   return res.data;
 };

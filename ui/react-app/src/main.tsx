@@ -15,7 +15,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <WebSocketProvider
-        url={import.meta.env.VITE_SOCKET_URL}
+        url={`ws://${window.location.host}/ws/socket-server/`}
         reconnectInterval={2000}
       >
         <ReactQueryDevtools initialIsOpen={false} />

@@ -1,9 +1,7 @@
 import json
 from channels.generic.websocket import WebsocketConsumer
 from asgiref.sync import async_to_sync
-from api.serializers import CommentSerializer
-from .openai_client import client
-from .personas import choose_persona_ai, get_ai_responses, AI_PERSONAS
+
 
 class ChatConsumer(WebsocketConsumer):
     def connect(self):
@@ -32,6 +30,8 @@ class ChatConsumer(WebsocketConsumer):
             })
 
     def post_reply(self, event):
+        from .personas import choose_persona_ai, get_ai_responses, AI_PERSONAS
+        from api.serializers import CommentSerializer
         data = {
             "content": event['message'],
             "post":  event['post_id'],

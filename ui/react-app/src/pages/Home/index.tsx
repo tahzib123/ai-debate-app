@@ -1,6 +1,5 @@
 import getPosts from "../../api/requests/getPosts";
 import { Posts } from "../../components/Posts";
-import { Sidebar } from "../../components/Sidebar";
 import { Layout } from "../../layouts/main";
 
 export function Home() {

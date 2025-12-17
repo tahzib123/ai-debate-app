@@ -1,6 +1,5 @@
 import { useState } from "react";
 import type { IPost } from "../../types/DTO/getPosts";
-import { useWebSocketClient } from "../../providers/WebsocketProvider";
 import { PostReplies } from "../PostReplys";
 interface PostProps {
   post: IPost;

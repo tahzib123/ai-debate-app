@@ -1,0 +1,108 @@
+import { useState } from "react";
+import type { IPost } from "../../types/DTO/getPosts";
+import { useWebSocketClient } from "../../providers/WebsocketProvider";
+import { PostReplies } from "../PostReplys";
+interface PostProps {
+  post: IPost;
+}
+
+export function Post({ post }: PostProps) {
+  const [reaction, setReaction] = useState<"like" | "dislike" | null>(null);
+
+  const handleReactionClicked = (value: "like" | "dislike") => {
+    setReaction((prev) => (prev === value ? null : value));
+  };
+
+  return (
+    <div
+      className=" relative min-h-[200px]  my-4 mx-4 p-4  rounded-xl  bg-slate-800/30 
+                backdrop-blur-md 
+                border border-slate-700/30 
+                shadow-lg"
+    >
+      <div
+        className="absolute inset-0
+             bg-gradient-to-tr
+             from-slate-700/4
+             via-slate-800/3
+             to-slate-900/2
+             pointer-events-none
+             rounded-2xl"
+      ></div>
+      <div className="flex justify-between items-center">
+        <div className="inline-flex items-center gap-2">
+          <div className="w-10 flex items-center gap-4">
+            <img
+              alt="Tailwind CSS Navbar component"
+              className="rounded-full m-0"
+              src="https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp"
+            />
+          </div>
+          <span className="align-middle">{post.created_by_detail.name}</span>
+          <div className="w-1 h-1 bg-gray-500 rounded-[50%]"></div>
+          <span className="block text-xs text-gray-500">
+            {new Date(post.updated_at).toLocaleDateString("en-US", {
+              dateStyle: "long",
+            })}
+          </span>
+        </div>
+        <div className="flex gap-1 items-center">
+          <div className="flex gap-4">
+            {/* Like Button */}
+            <button
+              className={`cursor-pointer flex items-center gap-2 ${
+                reaction === "like" ? "text-pink-500" : "text-gray-100"
+              }`}
+              onClick={() => handleReactionClicked("like")}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                className="size-5"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M6.633 10.25c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 0 1 2.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 0 0 .322-1.672V2.75a.75.75 0 0 1 .75-.75 2.25 2.25 0 0 1 2.25 2.25c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282m0 0h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 0 1-2.649 7.521c-.388.482-.987.729-1.605.729H13.48c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 0 0-1.423-.23H5.904m10.598-9.75H14.25M5.904 18.5c.083.205.173.405.27.602.197.4-.078.898-.523.898h-.908c-.889 0-1.713-.518-1.972-1.368a12 12 0 0 1-.521-3.507c0-1.553.295-3.036.831-4.398C3.387 9.953 4.167 9.5 5 9.5h1.053c.472 0 .745.556.5.96a8.958 8.958 0 0 0-1.302 4.665c0 1.194.232 2.333.654 3.375Z"
+                />
+              </svg>
+            </button>
+
+            <button
+              className={`cursor-pointer flex items-center gap-2 ${
+                reaction === "dislike" ? "text-blue-500" : "text-gray-100"
+              }`}
+              onClick={() => handleReactionClicked("dislike")}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                className="size-5"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M7.498 15.25H4.372c-1.026 0-1.945-.694-2.054-1.715a12.137 12.137 0 0 1-.068-1.285c0-2.848.992-5.464 2.649-7.521C5.287 4.247 5.886 4 6.504 4h4.016a4.5 4.5 0 0 1 1.423.23l3.114 1.04a4.5 4.5 0 0 0 1.423.23h1.294M7.498 15.25c.618 0 .991.724.725 1.282A7.471 7.471 0 0 0 7.5 19.75 2.25 2.25 0 0 0 9.75 22a.75.75 0 0 0 .75-.75v-.633c0-.573.11-1.14.322-1.672.304-.76.93-1.33 1.653-1.715a9.04 9.04 0 0 0 2.86-2.4c.498-.634 1.226-1.08 2.032-1.08h.384m-10.253 1.5H9.7m8.075-9.75c.01.05.027.1.05.148.593 1.2.925 2.55.925 3.977 0 1.487-.36 2.89-.999 4.125m.023-8.25c-.076-.365.183-.75.575-.75h.908c.889 0 1.713.518 1.972 1.368.339 1.11.521 2.287.521 3.507 0 1.553-.295 3.036-.831 4.398-.306.774-1.086 1.227-1.918 1.227h-1.053c-.472 0-.745-.556-.5-.96a8.95 8.95 0 0 0 .303-.54"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div className="badge badge-soft badge-primary mt-4">
+        {post.topic_detail.name}
+      </div>
+      <div className="prose my-8">
+        <p>{post.content}</p>
+      </div>
+
+      <PostReplies post={post} />
+    </div>
+  );
+}

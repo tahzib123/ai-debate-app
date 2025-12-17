@@ -1,0 +1,15 @@
+[x] fix post creation issue
+[] auth 
+[x] websocket setup backend
+[x] websocket room connection on comment
+    [x] when comment is sent from front-end save it in database
+    [x] broadcast the sent comment to all listeners
+    [x] update the ui with the new comment
+[x] comment functionality
+[] comments should have more than just the message in the ui
+[x] typing indicators
+[x] integrate ai on backend
+[x] ai responds to comment
+[] create post functionality
+[] ai responds to post
+[] like / dislike functionality

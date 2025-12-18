@@ -1,15 +1,48 @@
 from rest_framework.response import Response
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view
-from debateapp.models import Topic, User, Post, Comment
-from .serializers import TopicSerializer, UserSerializer, PostSerializer, CommentSerializer
+from debateapp.models import Topic, User, Post, Comment, Reaction, Bookmark, PostView
+from .serializers import (
+    TopicSerializer, UserSerializer, PostSerializer, CommentSerializer, 
+    ReactionSerializer, BookmarkSerializer
+)
 from rest_framework import status
+from django.db.models import Q, Count, F
+from django.utils import timezone
+from datetime import timedelta
+import ipaddress
+
+def get_client_ip(request):
+    """Get client IP address from request"""
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
 
 @api_view(['GET'])
 def getTopics(request):
-    topics = Topic.objects.all()
+    """Get all topics with post counts and activity status"""
+    topics = Topic.objects.annotate(
+        annotated_post_count=Count('topics', distinct=True)
+    ).order_by('-annotated_post_count', 'name')
     serializer = TopicSerializer(topics, many=True)
     return Response(serializer.data)
 
+@api_view(['GET'])
+def searchTopics(request):
+    """Search topics by name"""
+    query = request.GET.get('q', '')
+    if query:
+        topics = Topic.objects.filter(
+            Q(name__icontains=query) | Q(description__icontains=query)
+        ).annotate(annotated_post_count=Count('topics', distinct=True)).order_by('-annotated_post_count')
+    else:
+        topics = Topic.objects.none()
+    
+    serializer = TopicSerializer(topics, many=True)
+    return Response(serializer.data)
 
 @api_view(['POST'])
 def createTopic(request):
@@ -22,56 +55,234 @@ def createTopic(request):
 
 @api_view(['GET'])
 def getPosts(request):
-    posts = Post.objects.all()
-    serializer = PostSerializer(posts, many=True)
+    """Get posts with filtering and sorting"""
+    posts = Post.objects.select_related('created_by', 'topic').prefetch_related('reactions')
+    
+    # Topic filtering
+    topic_id = request.GET.get('topic')
+    if topic_id:
+        posts = posts.filter(topic_id=topic_id)
+    
+    # Search filtering
+    search = request.GET.get('search', '')
+    if search:
+        posts = posts.filter(
+            Q(content__icontains=search) | 
+            Q(topic__name__icontains=search) |
+            Q(created_by__name__icontains=search)
+        )
+    
+    # Sorting
+    sort_by = request.GET.get('sort', 'latest')
+    if sort_by == 'latest':
+        posts = posts.order_by('-updated_at')
+    elif sort_by == 'popular':
+        # Sort by engagement score (likes + comments + views)
+        posts = posts.annotate(
+            annotated_like_count=Count('reactions', filter=Q(reactions__type='like'), distinct=True),
+            annotated_comment_count=Count('comments', distinct=True),
+        ).order_by('-annotated_like_count', '-annotated_comment_count', '-view_count', '-updated_at')
+    elif sort_by == 'controversial':
+        # Sort by controversy score (posts with mixed reactions)
+        posts = posts.annotate(
+            annotated_like_count=Count('reactions', filter=Q(reactions__type='like'), distinct=True),
+            annotated_dislike_count=Count('reactions', filter=Q(reactions__type='dislike'), distinct=True),
+            annotated_total_reactions=Count('reactions', distinct=True)
+        ).order_by('-annotated_total_reactions', '-updated_at')
+    
+    serializer = PostSerializer(posts, many=True, context={'request': request})
+    return Response(serializer.data)
+
+@api_view(['GET'])
+def getTrendingPosts(request):
+    """Get trending posts based on recent activity"""
+    week_ago = timezone.now() - timedelta(days=7)
+    
+    trending_posts = Post.objects.select_related('created_by', 'topic').annotate(
+        recent_likes=Count('reactions', filter=Q(reactions__type='like', reactions__created_at__gte=week_ago)),
+        recent_comments=Count('comments', filter=Q(comments__created_at__gte=week_ago)),
+        recent_views=Count('views', filter=Q(views__viewed_at__gte=week_ago))
+    ).filter(
+        Q(updated_at__gte=week_ago) |
+        Q(recent_likes__gt=0) |
+        Q(recent_comments__gt=0) |
+        Q(recent_views__gt=5)
+    ).order_by('-recent_likes', '-recent_comments', '-recent_views', '-updated_at')[:20]
+    
+    serializer = PostSerializer(trending_posts, many=True, context={'request': request})
     return Response(serializer.data)
 
 @api_view(['GET'])
 def getUsersPosts(request, userId):
     try:
-        post = Post.objects.get(created_by=userId)
-        serializer = PostSerializer(post)
+        posts = Post.objects.filter(created_by=userId).select_related('created_by', 'topic')
+        serializer = PostSerializer(posts, many=True, context={'request': request})
         return Response(serializer.data)
     except Post.DoesNotExist:
         return Response([], status=status.HTTP_404_NOT_FOUND)
 
-
 @api_view(['GET', 'PUT'])
 def post(request, pk):
     try:
-        post = Post.objects.get(pk=pk)
-        serializer = PostSerializer(data=post)
+        post_obj = Post.objects.select_related('created_by', 'topic').get(pk=pk)
     except Post.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
     
     if request.method == 'GET':
+        # Track view
+        client_ip = get_client_ip(request)
+        if client_ip:
+            PostView.objects.get_or_create(
+                post=post_obj,
+                ip_address=client_ip,
+                defaults={'user_id': 1}  # For demo, use user ID 1
+            )
+            # Update view count
+            post_obj.view_count = F('view_count') + 1
+            post_obj.save(update_fields=['view_count'])
+            post_obj.refresh_from_db()
+        
+        serializer = PostSerializer(post_obj, context={'request': request})
         return Response(serializer.data)
     elif request.method == 'PUT':
-        serializer = PostSerializer(post, data=request.data)
+        serializer = PostSerializer(post_obj, data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         else:
-            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+            return Response(serializer.errors, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 @api_view(['GET'])
 def getCommentsForPost(request, pk):
     try:
-        comments = Comment.objects.filter(post=pk)
-        serializer = CommentSerializer(comments, many=True)
+        comments = Comment.objects.filter(post=pk).select_related('created_by').order_by('created_at')
+        serializer = CommentSerializer(comments, many=True, context={'request': request})
         return Response(serializer.data)
     except Comment.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
 
-
 @api_view(['POST'])
 def createPost(request):
-    serializer = PostSerializer(data=request.data)
+    serializer = PostSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data)
     else:
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+def createComment(request):
+    serializer = CommentSerializer(data=request.data, context={'request': request})
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    else:
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# Reaction endpoints
+@csrf_exempt
+@api_view(['POST'])
+def toggleReaction(request):
+    """Toggle like/dislike on post or comment"""
+    reaction_type = request.data.get('type')  # 'like' or 'dislike'
+    post_id = request.data.get('post_id')
+    comment_id = request.data.get('comment_id')
+    user_id = request.data.get('user_id', 1)  # Default to user 1 for demo
+    
+    if not reaction_type or reaction_type not in ['like', 'dislike']:
+        return Response({'error': 'Invalid reaction type'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    if not (post_id or comment_id):
+        return Response({'error': 'Post ID or Comment ID required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        # Check if reaction already exists
+        if post_id:
+            existing_reaction = Reaction.objects.filter(post_id=post_id, created_by_id=user_id).first()
+        else:
+            existing_reaction = Reaction.objects.filter(comment_id=comment_id, created_by_id=user_id).first()
+        
+        if existing_reaction:
+            if existing_reaction.type == reaction_type:
+                # Remove reaction if same type
+                existing_reaction.delete()
+                return Response({'action': 'removed', 'type': reaction_type})
+            else:
+                # Update reaction type
+                existing_reaction.type = reaction_type
+                existing_reaction.save()
+                return Response({'action': 'updated', 'type': reaction_type})
+        else:
+            # Create new reaction
+            reaction_data = {
+                'type': reaction_type,
+                'created_by': user_id,
+                'post': post_id,
+                'comment': comment_id
+            }
+            serializer = ReactionSerializer(data=reaction_data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({'action': 'created', 'type': reaction_type})
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# Bookmark endpoints
+@csrf_exempt
+@api_view(['POST'])
+def toggleBookmark(request):
+    """Toggle bookmark for a post"""
+    post_id = request.data.get('post_id')
+    user_id = request.data.get('user_id', 1)  # Default to user 1 for demo
+    
+    if not post_id:
+        return Response({'error': 'Post ID required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        bookmark = Bookmark.objects.filter(post_id=post_id, user_id=user_id).first()
+        if bookmark:
+            bookmark.delete()
+            return Response({'action': 'removed'})
+        else:
+            Bookmark.objects.create(post_id=post_id, user_id=user_id)
+            return Response({'action': 'added'})
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def getUserBookmarks(request, user_id):
+    """Get user's bookmarked posts"""
+    bookmarks = Bookmark.objects.filter(user_id=user_id).select_related('post__created_by', 'post__topic')
+    serializer = BookmarkSerializer(bookmarks, many=True, context={'request': request})
+    return Response(serializer.data)
+
+# Statistics endpoints
+@api_view(['GET'])
+def getStatistics(request):
+    """Get dashboard statistics"""
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    today = timezone.now().date()
+    week_ago = timezone.now() - timedelta(days=7)
+    
+    stats = {
+        'total_posts': Post.objects.count(),
+        'total_users': User.objects.count(),
+        'total_comments': Comment.objects.count(),
+        'active_debates': Post.objects.filter(updated_at__gte=week_ago).count(),
+        'participants_today': User.objects.filter(
+            Q(posts__created_at__date=today) | Q(comments__created_at__date=today)
+        ).distinct().count(),
+        'new_posts_today': Post.objects.filter(created_at__date=today).count(),
+        'trending_topics': Topic.objects.annotate(
+            recent_posts=Count('topics', filter=Q(topics__updated_at__gte=week_ago))
+        ).filter(recent_posts__gt=0).order_by('-recent_posts')[:5].values('id', 'name', 'recent_posts')
+    }
+    
+    return Response(stats)
 
 @api_view(['GET'])
 def getUsers(request):
@@ -83,12 +294,12 @@ def getUsers(request):
 def user(request, pk):
     try:
         user = User.objects.get(pk=pk)
-        serializer = UserSerializer(user)
         
     except User.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
     
     if request.method == 'GET':
+        serializer = UserSerializer(user)
         return Response(serializer.data)
     
     elif request.method == 'PUT':
@@ -97,7 +308,7 @@ def user(request, pk):
             serializer.save()
             return Response(serializer.data)
         else:
-            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+            return Response(serializer.errors, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 @api_view(['POST'])
 def createUser(request):

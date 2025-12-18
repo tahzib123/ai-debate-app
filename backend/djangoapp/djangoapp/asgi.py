@@ -18,5 +18,7 @@ import debateapp.routing
 
 application = ProtocolTypeRouter({
     'http': get_asgi_application(),
-    'websocket': URLRouter(debateapp.routing.websocket_urlpatterns)
+    'websocket': AuthMiddlewareStack(
+        URLRouter(debateapp.routing.websocket_urlpatterns)
+    )
 })

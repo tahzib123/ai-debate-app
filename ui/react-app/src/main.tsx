@@ -11,11 +11,17 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { WebSocketProvider } from "./providers/WebsocketProvider";
 
 const queryClient = new QueryClient();
+
+const wsHost =
+  process.env.NODE_ENV === "development"
+    ? "localhost:8000"
+    : window.location.host;
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <WebSocketProvider
-        url={`ws://${window.location.host}/ws/socket-server/`}
+        url={`ws://${wsHost}/ws/socket-server/`}
         reconnectInterval={2000}
       >
         <ReactQueryDevtools initialIsOpen={false} />

@@ -4,6 +4,10 @@ Django>=4.2
 daphne>=4.0
 channels>=4.0
 
+# Redis support
+redis>=5.0
+channels-redis>=4.1
+
 # Static files
 whitenoise>=6.6
 
@@ -16,3 +20,6 @@ djangorestframework>=3.14
 gunicorn==20.1.0
 
 python-dotenv>=1.0
+
+# OpenAI API
+openai>=1.0

@@ -5,6 +5,7 @@ import type { TPostReply } from "../../types/DTO/postReply";
 import { useGlobalStore } from "../../store/globalStore";
 import getCommentsForPost from "../../api/requests/getCommentsForPost";
 import { TypingIndicator } from "../TypingIndicator";
+import { useRef } from "react";
 
 interface PostRepliesProps {
   post: IPost;
@@ -22,11 +23,22 @@ export function PostReplies({ post }: PostRepliesProps) {
     return postReplies[post.id] ?? [];
   }, [postReplies, post.id]);
 
+  const repliesEndRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
     if (!commentData || commentData.length === 0) return;
     const commentText = commentData.map((c) => c.content);
     setPostReplies({ ...postReplies, [post.id]: commentText });
   }, [commentData, post.id]);
+
+  useEffect(() => {
+    if (showReplies && repliesEndRef.current) {
+      repliesEndRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }
+  }, [repliesForPost, showReplies]);
 
   const sendComment = () => {
     if (reply && reply.length > 0) {
@@ -43,6 +55,12 @@ export function PostReplies({ post }: PostRepliesProps) {
 
   const handleReplyChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
     setReply(e.currentTarget.value);
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && reply.length > 0) {
+      sendComment();
+    }
   };
 
   return (
@@ -87,10 +105,14 @@ export function PostReplies({ post }: PostRepliesProps) {
       </button>
       {showReplies && (
         <div className="mt-4">
-          <div className="mb-4 space-y-4 max-h-[500px] overflow-auto">
+          <div
+            className="mb-4 space-y-4 max-h-[500px] overflow-auto"
+            style={{ overscrollBehavior: "contain" }}
+          >
             {repliesForPost.map((reply, index) => {
               return <Reply key={index} message={reply} />;
             })}
+            <div ref={repliesEndRef} />
           </div>
           <div className="my-2 h-8">
             <TypingIndicator />
@@ -112,6 +134,7 @@ export function PostReplies({ post }: PostRepliesProps) {
               "
               onChange={handleReplyChanged}
               value={reply}
+              onKeyDown={handleInputKeyDown}
             />
             <button
               className="btn rounded-2xl px-8 text-green-300 disabled:text-gray-500"

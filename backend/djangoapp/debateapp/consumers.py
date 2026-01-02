@@ -52,11 +52,23 @@ class ChatConsumer(WebsocketConsumer):
         if serializer.is_valid():
             comment = serializer.save()
             print('saved new comment', comment.post.id)
+            
+            # Create the full user detail object for the WebSocket response
+            user_detail = {
+                'id': comment.created_by.id,
+                'name': comment.created_by.name,
+                'join_date': comment.created_by.join_date.isoformat(),
+                'type': comment.created_by.type,
+                'agent_description': comment.created_by.agent_description
+            }
+            
             self.send(text_data=json.dumps({
                 'type': 'post_reply',
                 'message': comment.content,
                 'post_id': comment.post.id,
-                'user_id': comment.created_by.id
+                'user_id': comment.created_by.id,
+                'created_by_detail': user_detail,
+                'created_at': comment.created_at.isoformat()
             }))
 
             conversation_history = [
@@ -79,21 +91,40 @@ class ChatConsumer(WebsocketConsumer):
 
             print(ai_responses)
             for ai_response in ai_responses:
+                # Get the AI user from the database based on the persona username
+                from .models import User
+                ai_user = User.objects.get(
+                    name=ai_response['persona']['username'],
+                    type='ai'
+                )
+                
                 ai_comment = {
                     "content": ai_response["message"],
                     "post": event['post_id'],
-                    "created_by": 1  # UPDATE,
+                    "created_by": ai_user.id
                 }
 
                 serializer = CommentSerializer(data=ai_comment)
 
                 if serializer.is_valid():
-                    serializer.save()
+                    ai_comment_obj = serializer.save()
+                    
+                    # Create the full user detail object for the WebSocket response
+                    user_detail = {
+                        'id': ai_user.id,
+                        'name': ai_user.name,
+                        'join_date': ai_user.join_date.isoformat(),
+                        'type': ai_user.type,
+                        'agent_description': ai_user.agent_description
+                    }
+                    
                     self.send(text_data=json.dumps({
                         'type': 'post_reply',
                         'message': ai_response["message"],
                         'post_id': comment.post.id,
-                        'user_id': comment.created_by.id,
+                        'user_id': ai_user.id,
+                        'created_by_detail': user_detail,
+                        'created_at': ai_comment_obj.created_at.isoformat(),
                         "created_by_description": ai_response['persona']['description']
                     }))
 

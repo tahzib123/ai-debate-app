@@ -13,13 +13,13 @@ const createCommentFromReply = (message: TPostReply): IPostComment => {
   return {
     id: Date.now(), // Temporary ID until we get real one from backend
     content: message.message,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    created_at: message.created_at || new Date().toISOString(),
+    updated_at: message.created_at || new Date().toISOString(),
     post: message.post_id,
     parent: null,
-    created_by_detail: {
+    created_by_detail: message.created_by_detail || {
       id: message.user_id,
-      name: message.user_id === 1 ? "You" : `User ${message.user_id}`, // Temporary name
+      name: message.user_id === 1 ? "You" : `User ${message.user_id}`, // Fallback for old format
       join_date: new Date().toISOString(),
       type: "human", // Default to human for now
       agent_description: null,

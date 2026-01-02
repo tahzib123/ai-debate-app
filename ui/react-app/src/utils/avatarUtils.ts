@@ -41,6 +41,11 @@ export const getDisplayName = (
   user: IUserDetail,
   showType: boolean = true
 ): string => {
+  // Show "You" for the current user (user ID 1)
+  if (user.id === 1) {
+    return "You";
+  }
+  
   if (showType && user.type === "ai") {
     return `${user.name} (AI)`;
   }

@@ -10,6 +10,20 @@ import { useSearchParams } from "react-router";
 
 // Helper function to create a mock comment from WebSocket message
 const createCommentFromReply = (message: TPostReply): IPostComment => {
+  // Use the user details from WebSocket message, but override name if it's the current user
+  const userDetails = message.created_by_detail || {
+    id: message.user_id,
+    name: message.user_id === 1 ? "You" : `User ${message.user_id}`, // Fallback for old format
+    join_date: new Date().toISOString(),
+    type: "human", // Default to human for now
+    agent_description: null,
+  };
+
+  // Override the name to "You" if this is the current user (user_id 1)
+  if (userDetails.id === 1) {
+    userDetails.name = "You";
+  }
+
   return {
     id: Date.now(), // Temporary ID until we get real one from backend
     content: message.message,
@@ -17,13 +31,7 @@ const createCommentFromReply = (message: TPostReply): IPostComment => {
     updated_at: message.created_at || new Date().toISOString(),
     post: message.post_id,
     parent: null,
-    created_by_detail: message.created_by_detail || {
-      id: message.user_id,
-      name: message.user_id === 1 ? "You" : `User ${message.user_id}`, // Fallback for old format
-      join_date: new Date().toISOString(),
-      type: "human", // Default to human for now
-      agent_description: null,
-    },
+    created_by_detail: userDetails,
   };
 };
 

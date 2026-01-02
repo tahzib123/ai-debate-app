@@ -5,10 +5,12 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router";
 import { Home } from "./pages/Home";
 import { Profile } from "./pages/Profile";
+import { Topics } from "./pages/Topics";
 import "./index.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { WebSocketProvider } from "./providers/WebsocketProvider";
+import { ModalProvider } from "./providers/ModalProvider";
 
 const queryClient = new QueryClient();
 
@@ -24,13 +26,16 @@ createRoot(document.getElementById("root")!).render(
         url={`ws://${wsHost}/ws/socket-server/`}
         reconnectInterval={2000}
       >
-        <ReactQueryDevtools initialIsOpen={false} />
-        <BrowserRouter>
-          <Routes>
-            <Route index element={<Home />} />
-            <Route path="profile" element={<Profile />} />
-          </Routes>
-        </BrowserRouter>
+        <ModalProvider>
+          <ReactQueryDevtools initialIsOpen={false} />
+          <BrowserRouter>
+            <Routes>
+              <Route index element={<Home />} />
+              <Route path="topics" element={<Topics />} />
+              <Route path="profile" element={<Profile />} />
+            </Routes>
+          </BrowserRouter>
+        </ModalProvider>
       </WebSocketProvider>
     </QueryClientProvider>
   </StrictMode>

@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { Navbar } from "../components/Navbar";
 import { Sidebar } from "../components/Sidebar";
+import { NewDebateModal } from "../components/NewDebateModal";
+import { useModal } from "../providers/ModalProvider";
 import { navigationHeight } from "../constants";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Default to closed on mobile
+  const { isNewDebateModalOpen, closeNewDebateModal } = useModal();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -86,6 +89,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </main>
       </div>
+
+      {/* Global Modals */}
+      <NewDebateModal 
+        isOpen={isNewDebateModalOpen} 
+        onClose={closeNewDebateModal} 
+      />
     </div>
   );
 }

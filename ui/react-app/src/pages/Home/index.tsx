@@ -2,9 +2,11 @@ import getPosts from "../../api/requests/getPosts";
 import { Posts } from "../../components/Posts";
 import { Layout } from "../../layouts/main";
 import { StatsOverview } from "../../components/StatsOverview";
+import { useModal } from "../../providers/ModalProvider";
 
 export function Home() {
   const { data: posts, isLoading, error } = getPosts();
+  const { openNewDebateModal } = useModal();
 
   const LoadingSkeleton = () => (
     <div className="space-y-6 animate-pulse">
@@ -58,7 +60,10 @@ export function Home() {
         Be the first to start a meaningful conversation. Share your thoughts and
         spark engaging discussions.
       </p>
-      <button className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-medium rounded-lg hover:shadow-lg hover:scale-105 transition-all duration-200">
+      <button 
+        onClick={openNewDebateModal}
+        className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-medium rounded-lg hover:shadow-lg hover:scale-105 transition-all duration-200"
+      >
         Start a Debate
       </button>
     </div>

@@ -19,6 +19,7 @@ urlpatterns = [
     path('post/create/', views.createPost, name='create_post'),
     path('post/<int:pk>/', views.post, name='post_detail'),
     path('post/<int:pk>/comments/', views.getCommentsForPost, name='post_comments'),
+    path('post/<int:post_id>/trigger-ai/', views.triggerAIResponses, name='trigger_ai_responses'),
     
     # Comment endpoints
     path('comment/create/', views.createComment, name='create_comment'),

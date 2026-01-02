@@ -16,8 +16,10 @@ export function TopicBrowser({
   onCreateNew,
 }: TopicBrowserProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<'popular' | 'recent' | 'alphabetical'>('popular');
-  
+  const [sortBy, setSortBy] = useState<"popular" | "recent" | "alphabetical">(
+    "popular"
+  );
+
   const { data: topics = [], isLoading } = useTopics();
 
   const filteredAndSortedTopics = useMemo(() => {
@@ -35,11 +37,14 @@ export function TopicBrowser({
     // Sort topics
     const sorted = [...filtered].sort((a, b) => {
       switch (sortBy) {
-        case 'popular':
+        case "popular":
           return (b.post_count || 0) - (a.post_count || 0);
-        case 'recent':
-          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
-        case 'alphabetical':
+        case "recent":
+          return (
+            new Date(b.created_at || 0).getTime() -
+            new Date(a.created_at || 0).getTime()
+          );
+        case "alphabetical":
           return a.name.localeCompare(b.name);
         default:
           return 0;
@@ -52,7 +57,10 @@ export function TopicBrowser({
   const LoadingSkeleton = () => (
     <div className="space-y-3 animate-pulse">
       {[...Array(6)].map((_, i) => (
-        <div key={i} className="p-4 bg-slate-800/50 rounded-lg border border-slate-700/30">
+        <div
+          key={i}
+          className="p-4 bg-slate-800/50 rounded-lg border border-slate-700/30"
+        >
           <div className="h-4 bg-slate-700 rounded w-3/4 mb-2"></div>
           <div className="h-3 bg-slate-600 rounded w-1/2 mb-2"></div>
           <div className="flex gap-2">
@@ -128,8 +136,8 @@ export function TopicBrowser({
               onClick={() => onSelectTopic?.(topic)}
               className={`p-4 rounded-lg border transition-all duration-200 cursor-pointer group ${
                 selectedTopicId === topic.id
-                  ? 'bg-blue-500/20 border-blue-500/50 ring-2 ring-blue-500/20'
-                  : 'bg-slate-800/50 border-slate-700/30 hover:bg-slate-700/50 hover:border-slate-600/50'
+                  ? "bg-blue-500/20 border-blue-500/50 ring-2 ring-blue-500/20"
+                  : "bg-slate-800/50 border-slate-700/30 hover:bg-slate-700/50 hover:border-slate-600/50"
               }`}
             >
               <div className="flex justify-between items-start mb-2">
@@ -142,13 +150,13 @@ export function TopicBrowser({
                   </span>
                 )}
               </div>
-              
+
               {topic.description && (
                 <p className="text-sm text-gray-400 mb-3 line-clamp-2">
                   {topic.description}
                 </p>
               )}
-              
+
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 {topic.activity_score > 0 && (
                   <span className="flex items-center gap-1">
@@ -181,7 +189,9 @@ export function TopicBrowser({
             />
           </svg>
           <p className="text-sm">
-            {searchQuery ? 'No topics match your search' : 'No topics available'}
+            {searchQuery
+              ? "No topics match your search"
+              : "No topics available"}
           </p>
           {showCreateButton && !searchQuery && (
             <button

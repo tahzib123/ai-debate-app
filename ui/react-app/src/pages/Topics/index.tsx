@@ -9,7 +9,7 @@ export function Topics() {
   const [selectedTopic, setSelectedTopic] = useState<ITopicDetail | null>(null);
   const { data: topics = [], isLoading: topicsLoading } = useTopics();
   const { data: posts = [], isLoading: postsLoading } = usePosts(
-    undefined, 
+    undefined,
     selectedTopic?.id
   );
   const { openNewDebateModal } = useModal();
@@ -69,7 +69,7 @@ export function Topics() {
                       {selectedTopic.post_count || 0} posts
                     </span>
                   </div>
-                  
+
                   {selectedTopic.description && (
                     <p className="text-gray-400 text-sm mb-4">
                       {selectedTopic.description}
@@ -85,7 +85,10 @@ export function Topics() {
                     )}
                     {selectedTopic.created_at && (
                       <span>
-                        Created {new Date(selectedTopic.created_at).toLocaleDateString()}
+                        Created{" "}
+                        {new Date(
+                          selectedTopic.created_at
+                        ).toLocaleDateString()}
                       </span>
                     )}
                   </div>
@@ -96,7 +99,7 @@ export function Topics() {
                   <h3 className="text-lg font-medium text-white mb-4">
                     Recent Posts
                   </h3>
-                  
+
                   {postsLoading ? (
                     <div className="space-y-3 animate-pulse">
                       {[...Array(3)].map((_, i) => (

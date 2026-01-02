@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../../api/requests/axios/instance";
 import type { ITopicDetail, IPost } from "../../types/DTO/getPosts";
 import { useTopics } from "../../api/requests/getPosts";
+import { useGlobalStore } from "../../store/globalStore";
 
 interface NewDebateModalProps {
   isOpen: boolean;
@@ -30,7 +31,10 @@ export function NewDebateModal({ isOpen, onClose }: NewDebateModalProps) {
 
   const createPostMutation = useMutation({
     mutationFn: createPostFn,
-    onSuccess: () => {
+    onSuccess: (data: IPost) => {
+      // Set AI thinking state for the new post
+      useGlobalStore.getState().setAiThinking(data.id, true);
+
       // Invalidate and refetch posts to show the new one
       queryClient.invalidateQueries({ queryKey: ["posts"] });
       queryClient.invalidateQueries({ queryKey: ["topics"] }); // Also refresh topics to update post counts
@@ -187,7 +191,7 @@ export function NewDebateModal({ isOpen, onClose }: NewDebateModalProps) {
                   Publishing...
                 </div>
               ) : (
-                'Publish Post'
+                "Publish Post"
               )}
             </button>
           </div>

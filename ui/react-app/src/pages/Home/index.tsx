@@ -60,7 +60,7 @@ export function Home() {
         Be the first to start a meaningful conversation. Share your thoughts and
         spark engaging discussions.
       </p>
-      <button 
+      <button
         onClick={openNewDebateModal}
         className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-medium rounded-lg hover:shadow-lg hover:scale-105 transition-all duration-200"
       >

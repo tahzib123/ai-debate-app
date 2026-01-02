@@ -3,6 +3,7 @@ import type { IPost } from "../../types/DTO/getPosts";
 import { PostReplies } from "../PostReplys";
 import { Avatar } from "../Avatar";
 import { getDisplayName } from "../../utils/avatarUtils";
+import { useGlobalStore } from "../../store/globalStore";
 import {
   useToggleReaction,
   useToggleBookmark,
@@ -20,10 +21,26 @@ export function Post({ post }: PostProps) {
   const [isBookmarked, setIsBookmarked] = useState(post.is_bookmarked);
   const [likeCount, setLikeCount] = useState(post.like_count);
   const [dislikeCount, setDislikeCount] = useState(post.dislike_count);
+  const [isNewPost, setIsNewPost] = useState(false);
+
+  const aiThinkingPosts = useGlobalStore((state) => state.aiThinkingPosts);
 
   const toggleReactionMutation = useToggleReaction();
   const toggleBookmarkMutation = useToggleBookmark();
   const trackViewMutation = useTrackView();
+
+  // Check if this is a newly created post
+  useEffect(() => {
+    const postCreatedAt = new Date(post.created_at);
+    const now = new Date();
+    const timeDiff = (now.getTime() - postCreatedAt.getTime()) / 1000;
+
+    if (timeDiff < 10 && post.comment_count === 0) {
+      setIsNewPost(true);
+      const timer = setTimeout(() => setIsNewPost(false), 15000);
+      return () => clearTimeout(timer);
+    }
+  }, [post.created_at, post.comment_count]);
 
   // Track view when component mounts
   useEffect(() => {
@@ -123,6 +140,25 @@ export function Post({ post }: PostProps) {
                   </svg>
                   2 min read
                 </span>
+                {(isNewPost || aiThinkingPosts.has(post.id)) && (
+                  <>
+                    <span className="w-1 h-1 bg-gray-500 rounded-full"></span>
+                    <span className="inline-flex items-center gap-1 text-blue-400">
+                      <svg
+                        className="w-3 h-3 animate-pulse"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      AI thinking...
+                    </span>
+                  </>
+                )}
               </div>
             </div>
           </div>

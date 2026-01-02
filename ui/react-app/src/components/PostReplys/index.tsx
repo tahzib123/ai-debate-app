@@ -18,9 +18,14 @@ export function PostReplies({ post }: PostRepliesProps) {
   const [showReplies, setShowReplies] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const { sendMessage } = useWebSocketClient();
-  const { postReplies, setPostReplies } = useGlobalStore();
+  const { postReplies, setPostReplies, aiThinkingPosts, setAiThinking } =
+    useGlobalStore();
+
+  // Enable comment fetching if replies are shown OR if this is a new post with AI thinking
+  const shouldFetchComments = showReplies || aiThinkingPosts.has(post.id);
   const { data: commentData } = getCommentsForPost(post.id.toString(), {
-    enabled: showReplies,
+    enabled: shouldFetchComments,
+    refetchInterval: aiThinkingPosts.has(post.id) ? 1000 : false, // Poll every second when AI is thinking
   });
 
   const repliesForPost = useMemo(() => {
@@ -43,6 +48,47 @@ export function PostReplies({ post }: PostRepliesProps) {
     }
   }, [repliesForPost, showReplies]);
 
+  // Check if this is a newly created post and trigger AI thinking
+  useEffect(() => {
+    const postAge = Date.now() - new Date(post.created_at).getTime();
+    const isNewPost = postAge < 30000; // Less than 30 seconds old
+
+    if (
+      isNewPost &&
+      repliesForPost.length === 0 &&
+      !aiThinkingPosts.has(post.id)
+    ) {
+      setAiThinking(post.id, true);
+      // Let the backend handle removing the AI thinking state when responses arrive
+    }
+  }, [
+    post.id,
+    post.created_at,
+    repliesForPost.length,
+    aiThinkingPosts,
+    setAiThinking,
+  ]);
+
+  // Handle AI thinking removal and auto-expansion when comments arrive
+  useEffect(() => {
+    if (repliesForPost.length > 0 && aiThinkingPosts.has(post.id)) {
+      // Remove AI thinking indicator
+      setAiThinking(post.id, false);
+
+      // Auto-expand discussion if not already expanded
+      if (!showReplies) {
+        setShowReplies(true);
+        setIsExpanded(true);
+      }
+    }
+  }, [
+    repliesForPost.length,
+    post.id,
+    aiThinkingPosts,
+    setAiThinking,
+    showReplies,
+  ]);
+
   const sendComment = () => {
     if (reply && reply.length > 0) {
       const msg: TPostReply = {
@@ -53,6 +99,10 @@ export function PostReplies({ post }: PostRepliesProps) {
       };
       sendMessage(JSON.stringify(msg));
       setReply("");
+
+      // Show AI thinking indicator
+      setAiThinking(post.id, true);
+      // Let the AI responses naturally remove this state
     }
   };
 
@@ -197,6 +247,36 @@ export function PostReplies({ post }: PostRepliesProps) {
                 repliesForPost.map((comment, index) => (
                   <Reply key={`${comment.id}-${index}`} comment={comment} />
                 ))
+              )}
+
+              {/* AI thinking indicator */}
+              {aiThinkingPosts.has(post.id) && (
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-800/30 border border-cyan-500/30 animate-pulse">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center">
+                      <svg
+                        className="w-4 h-4 text-cyan-400 animate-spin"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-cyan-400 font-medium">
+                        AI Debaters
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        analyzing...
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Preparing thoughtful responses to your post
+                    </div>
+                  </div>
+                </div>
               )}
 
               {/* Typing indicator */}

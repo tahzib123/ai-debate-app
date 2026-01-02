@@ -11,6 +11,9 @@ from django.db.models import Q, Count, F
 from django.utils import timezone
 from datetime import timedelta
 import ipaddress
+import threading
+import time
+from debateapp.personas import choose_persona_ai, get_ai_responses, AI_PERSONAS
 
 def get_client_ip(request):
     """Get client IP address from request"""
@@ -165,10 +168,107 @@ def getCommentsForPost(request, pk):
 def createPost(request):
     serializer = PostSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
-        serializer.save()
+        post = serializer.save()
+        
+        # Trigger AI responses in a background thread to avoid blocking the response
+        def generate_ai_responses():
+            try:
+                # Add a small delay to make responses feel more natural
+                time.sleep(0.5)  # Reduced from 2 seconds to 0.5 seconds
+                
+                # Get recent conversation history for this topic
+                recent_posts = Post.objects.filter(topic=post.topic).order_by('-created_at')[:10]
+                conversation_history = []
+                
+                for p in reversed(recent_posts):
+                    conversation_history.append({
+                        "role": "user" if p.created_by.type == "human" else "assistant",
+                        "content": f"{p.created_by.name}: {p.content}"
+                    })
+                
+                # Choose which AI personas should respond
+                selected_personas = choose_persona_ai(post.content, conversation_history)
+                
+                # Get AI responses
+                ai_responses = get_ai_responses(selected_personas, conversation_history)
+                
+                # Create comments for each AI response with small delays between them
+                for i, response in enumerate(ai_responses):
+                    if i > 0:  # Add delay between multiple responses
+                        time.sleep(0.5)  # Reduced from 1 second to 0.5 seconds
+                        
+                    persona_name = response["persona"]["username"]
+                    ai_user = User.objects.filter(name=persona_name, type="ai").first()
+                    
+                    if ai_user:
+                        Comment.objects.create(
+                            created_by=ai_user,
+                            post=post,
+                            content=response["message"]
+                        )
+                        
+            except Exception as e:
+                print(f"Error generating AI responses: {e}")
+        
+        # Start the AI response generation in a background thread
+        thread = threading.Thread(target=generate_ai_responses)
+        thread.daemon = True
+        thread.start()
+        
         return Response(serializer.data)
     else:
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+def triggerAIResponses(request, post_id):
+    """Manually trigger AI responses for a specific post (for testing/debugging)"""
+    try:
+        post = Post.objects.get(id=post_id)
+        
+        # Get recent conversation history for this topic
+        recent_posts = Post.objects.filter(topic=post.topic).order_by('-created_at')[:10]
+        conversation_history = []
+        
+        for p in reversed(recent_posts):
+            conversation_history.append({
+                "role": "user" if p.created_by.type == "human" else "assistant",
+                "content": f"{p.created_by.name}: {p.content}"
+            })
+        
+        # Choose which AI personas should respond
+        selected_personas = choose_persona_ai(post.content, conversation_history)
+        
+        # Get AI responses
+        ai_responses = get_ai_responses(selected_personas, conversation_history)
+        
+        # Create comments for each AI response
+        created_comments = []
+        for response in ai_responses:
+            persona_name = response["persona"]["username"]
+            ai_user = User.objects.filter(name=persona_name, type="ai").first()
+            
+            if ai_user:
+                comment = Comment.objects.create(
+                    created_by=ai_user,
+                    post=post,
+                    content=response["message"]
+                )
+                created_comments.append({
+                    'id': comment.id,
+                    'persona': persona_name,
+                    'content': response["message"]
+                })
+        
+        return Response({
+            'success': True,
+            'message': f'Created {len(created_comments)} AI responses',
+            'responses': created_comments
+        })
+        
+    except Post.DoesNotExist:
+        return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['POST'])
 def createComment(request):

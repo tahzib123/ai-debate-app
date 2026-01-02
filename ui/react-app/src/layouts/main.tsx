@@ -91,9 +91,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Global Modals */}
-      <NewDebateModal 
-        isOpen={isNewDebateModalOpen} 
-        onClose={closeNewDebateModal} 
+      <NewDebateModal
+        isOpen={isNewDebateModalOpen}
+        onClose={closeNewDebateModal}
       />
     </div>
   );

@@ -1,6 +1,7 @@
 from .models import User
 from .openai_client import client
 import json
+import random
 
 AI_PERSONAS = {
     "logic_master": {
@@ -61,40 +62,48 @@ AI_PERSONAS = {
 }
 
 def choose_persona_ai(user_message, conversation_history):
-    router_prompt = [
-        {"role": "system", "content": "You are a routing assistant. Decide which AI persona(s) should respond based on the conversation. Available personas: logic_master, storyteller, critic, optimist, troll, angry_person, diplomat, redditor, expert_in_everything, phd_student, unemployed_student. Only 3 personas max can be selected. Only return their names as a JSON list."},
-        *conversation_history,
-        {"role": "user", "content": f"User just said: {user_message}\n\nWhich persona(s) should reply?"}
-    ]
-
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=router_prompt,
-        response_format={ "type": "json_schema", "json_schema": {
-            "name": "persona_selection",
-            "schema": {
-                "type": "object",
-                "properties": {
-                    "personas": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                    }
-                },
-                "required": ["personas"]
-            }
-        }},
-    )
-    message_text = response.choices[0].message.content
-
-    # Parse JSON safely
+    # Fallback persona selection if OpenAI is not available
     try:
-        parsed = json.loads(message_text)
-        selected_personas = parsed.get("personas", [])
-    except json.JSONDecodeError:
-        # fallback if AI returns something invalid
-        selected_personas = []
+        router_prompt = [
+            {"role": "system", "content": "You are a routing assistant. Decide which AI persona(s) should respond based on the conversation. Available personas: logic_master, storyteller, critic, optimist, troll, angry_person, diplomat, redditor, expert_in_everything, phd_student, unemployed_student. Only 3 personas max can be selected. Only return their names as a JSON list."},
+            *conversation_history,
+            {"role": "user", "content": f"User just said: {user_message}\n\nWhich persona(s) should reply?"}
+        ]
 
-    return selected_personas
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=router_prompt,
+            response_format={ "type": "json_schema", "json_schema": {
+                "name": "persona_selection",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "personas": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                        }
+                    },
+                    "required": ["personas"]
+                }
+            }},
+        )
+        message_text = response.choices[0].message.content
+
+        # Parse JSON safely
+        try:
+            parsed = json.loads(message_text)
+            selected_personas = parsed.get("personas", [])
+        except json.JSONDecodeError:
+            # fallback if AI returns something invalid
+            selected_personas = []
+
+        return selected_personas
+    except Exception as e:
+        print(f"OpenAI error, using fallback persona selection: {e}")
+        # Fallback: randomly select 1-3 personas
+        available_personas = list(AI_PERSONAS.keys())
+        num_personas = random.randint(1, 3)
+        return random.sample(available_personas, min(num_personas, len(available_personas)))
 
 def get_ai_responses(selected_personas, conversation_history):
     responses = []
@@ -102,15 +111,34 @@ def get_ai_responses(selected_personas, conversation_history):
     for persona_name in selected_personas:
         persona = AI_PERSONAS[persona_name]
 
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": persona["system_prompt"]},
-                *conversation_history,
-            ],
-        )
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": persona["system_prompt"]},
+                    *conversation_history,
+                ],
+            )
+            ai_message = response.choices[0].message.content
+        except Exception as e:
+            print(f"OpenAI error for {persona_name}, using fallback response: {e}")
+            # Fallback responses based on persona type
+            fallback_responses = {
+                "logic_master": "Let's analyze this logically. What evidence supports this claim?",
+                "storyteller": "This reminds me of an old tale where...",
+                "critic": "I have to disagree with several points here.",
+                "optimist": "Great point! I see lots of potential here.",
+                "troll": "LOL, seriously? 🙄",
+                "angry_person": "This is absolutely ridiculous!",
+                "diplomat": "Perhaps we can find some middle ground here.",
+                "redditor": "This. So much this. Take my upvote!",
+                "expert_in_everything": "Actually, studies show that...",
+                "phd_student": "According to recent literature...",
+                "unemployed_student": "Honestly, I don't know much about this but..."
+            }
+            ai_message = fallback_responses.get(persona_name, "Interesting perspective!")
 
-        responses.append({"message": response.choices[0].message.content, "persona": persona})
+        responses.append({"message": ai_message, "persona": persona})
 
     return responses
 

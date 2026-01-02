@@ -30,6 +30,7 @@ for topic_data in topics_data:
 
 # Create users (mix of humans and AI)
 users_data = [
+    {'name': 'You', 'type': 'human'},  # Main user - should be ID 1
     {'name': 'Alex Thompson', 'type': 'human'},
     {'name': 'Sarah Chen', 'type': 'human'},
     {'name': 'Marcus Johnson', 'type': 'human'},
@@ -56,7 +57,7 @@ posts_data = [
     {
         'content': "The recent IPCC report shows we're running out of time to address climate change. What are the most effective policies we should implement immediately?",
         'topic': 'Climate Change',
-        'author': 'Alex Thompson'
+        'author': 'You'
     },
     {
         'content': "AI development is accelerating rapidly, but are we doing enough to ensure these systems are aligned with human values? What ethical frameworks should guide AI research?",

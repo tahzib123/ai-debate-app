@@ -106,11 +106,11 @@ def choose_persona_ai(user_message, conversation_history):
         return random.sample(available_personas, min(num_personas, len(available_personas)))
 
 def get_ai_responses(selected_personas, conversation_history):
-    responses = []
-
-    for persona_name in selected_personas:
+    import concurrent.futures
+    import threading
+    
+    def get_single_response(persona_name):
         persona = AI_PERSONAS[persona_name]
-
         try:
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -137,9 +137,23 @@ def get_ai_responses(selected_personas, conversation_history):
                 "unemployed_student": "Honestly, I don't know much about this but..."
             }
             ai_message = fallback_responses.get(persona_name, "Interesting perspective!")
-
-        responses.append({"message": ai_message, "persona": persona})
-
+        
+        return {"message": ai_message, "persona": persona}
+    
+    # Use ThreadPoolExecutor for concurrent API calls
+    responses = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(selected_personas), 5)) as executor:
+        future_to_persona = {executor.submit(get_single_response, persona): persona 
+                           for persona in selected_personas}
+        
+        for future in concurrent.futures.as_completed(future_to_persona):
+            try:
+                response = future.result()
+                responses.append(response)
+            except Exception as exc:
+                persona_name = future_to_persona[future]
+                print(f'Persona {persona_name} generated an exception: {exc}')
+    
     return responses
 
 

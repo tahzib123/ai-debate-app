@@ -173,30 +173,43 @@ def createPost(request):
         # Trigger AI responses in a background thread to avoid blocking the response
         def generate_ai_responses():
             try:
-                # Add a small delay to make responses feel more natural
-                time.sleep(0.5)  # Reduced from 2 seconds to 0.5 seconds
-                
-                # Get recent conversation history for this topic
-                recent_posts = Post.objects.filter(topic=post.topic).order_by('-created_at')[:10]
+                # Build conversation history for this specific post
                 conversation_history = []
                 
-                for p in reversed(recent_posts):
+                # Start with the original post
+                conversation_history.append({
+                    "role": "user" if post.created_by.type == "human" else "assistant",
+                    "content": f"{post.created_by.name}: {post.content}"
+                })
+                
+                # Add all existing comments/replies to this post in chronological order
+                existing_comments = Comment.objects.filter(post=post).order_by('created_at')
+                for comment in existing_comments:
                     conversation_history.append({
-                        "role": "user" if p.created_by.type == "human" else "assistant",
-                        "content": f"{p.created_by.name}: {p.content}"
+                        "role": "user" if comment.created_by.type == "human" else "assistant", 
+                        "content": f"{comment.created_by.name}: {comment.content}"
                     })
                 
+                # Add some recent context from other posts in the same topic (for broader context)
+                recent_posts = Post.objects.filter(topic=post.topic).exclude(id=post.id).order_by('-created_at')[:3]
+                topic_context = []
+                for p in recent_posts:
+                    topic_context.append({
+                        "role": "system",
+                        "content": f"Recent topic discussion - {p.created_by.name}: {p.content}"
+                    })
+                
+                # Combine topic context + current post conversation
+                full_context = topic_context + conversation_history
+                
                 # Choose which AI personas should respond
-                selected_personas = choose_persona_ai(post.content, conversation_history)
+                selected_personas = choose_persona_ai(post.content, full_context)
                 
                 # Get AI responses
-                ai_responses = get_ai_responses(selected_personas, conversation_history)
+                ai_responses = get_ai_responses(selected_personas, full_context)
                 
-                # Create comments for each AI response with small delays between them
+                # Create comments for each AI response immediately
                 for i, response in enumerate(ai_responses):
-                    if i > 0:  # Add delay between multiple responses
-                        time.sleep(0.5)  # Reduced from 1 second to 0.5 seconds
-                        
                     persona_name = response["persona"]["username"]
                     ai_user = User.objects.filter(name=persona_name, type="ai").first()
                     
@@ -225,21 +238,40 @@ def triggerAIResponses(request, post_id):
     try:
         post = Post.objects.get(id=post_id)
         
-        # Get recent conversation history for this topic
-        recent_posts = Post.objects.filter(topic=post.topic).order_by('-created_at')[:10]
+        # Build conversation history for this specific post
         conversation_history = []
         
-        for p in reversed(recent_posts):
+        # Start with the original post
+        conversation_history.append({
+            "role": "user" if post.created_by.type == "human" else "assistant",
+            "content": f"{post.created_by.name}: {post.content}"
+        })
+        
+        # Add all existing comments/replies to this post in chronological order
+        existing_comments = Comment.objects.filter(post=post).order_by('created_at')
+        for comment in existing_comments:
             conversation_history.append({
-                "role": "user" if p.created_by.type == "human" else "assistant",
-                "content": f"{p.created_by.name}: {p.content}"
+                "role": "user" if comment.created_by.type == "human" else "assistant", 
+                "content": f"{comment.created_by.name}: {comment.content}"
             })
         
+        # Add some recent context from other posts in the same topic
+        recent_posts = Post.objects.filter(topic=post.topic).exclude(id=post.id).order_by('-created_at')[:3]
+        topic_context = []
+        for p in recent_posts:
+            topic_context.append({
+                "role": "system",
+                "content": f"Recent topic discussion - {p.created_by.name}: {p.content}"
+            })
+        
+        # Combine topic context + current post conversation
+        full_context = topic_context + conversation_history
+        
         # Choose which AI personas should respond
-        selected_personas = choose_persona_ai(post.content, conversation_history)
+        selected_personas = choose_persona_ai(post.content, full_context)
         
         # Get AI responses
-        ai_responses = get_ai_responses(selected_personas, conversation_history)
+        ai_responses = get_ai_responses(selected_personas, full_context)
         
         # Create comments for each AI response
         created_comments = []

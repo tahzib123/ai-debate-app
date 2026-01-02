@@ -1,6 +1,8 @@
 import json
 from channels.generic.websocket import WebsocketConsumer
 from asgiref.sync import async_to_sync
+from .models import Comment, Post, User
+from .personas import AI_PERSONAS, choose_persona_ai, get_ai_responses
 
 
 class ChatConsumer(WebsocketConsumer):
@@ -39,7 +41,6 @@ class ChatConsumer(WebsocketConsumer):
             })
 
     def post_reply(self, event):
-        from .personas import choose_persona_ai, get_ai_responses, AI_PERSONAS
         from api.serializers import CommentSerializer
         data = {
             "content": event['message'],
@@ -71,12 +72,38 @@ class ChatConsumer(WebsocketConsumer):
                 'created_at': comment.created_at.isoformat()
             }))
 
-            conversation_history = [
-                {"role": "user", "content": data["content"]}
-            ]
+            # Build proper conversation history for this post
+            post = comment.post
+            conversation_history = []
+            
+            # Start with the original post
+            conversation_history.append({
+                "role": "user" if post.created_by.type == "human" else "assistant",
+                "content": f"{post.created_by.name}: {post.content}"
+            })
+            
+            # Add all existing comments/replies to this post in chronological order
+            existing_comments = Comment.objects.filter(post=post).order_by('created_at')
+            for existing_comment in existing_comments:
+                conversation_history.append({
+                    "role": "user" if existing_comment.created_by.type == "human" else "assistant", 
+                    "content": f"{existing_comment.created_by.name}: {existing_comment.content}"
+                })
+            
+            # Add some recent context from other posts in the same topic
+            recent_posts = Post.objects.filter(topic=post.topic).exclude(id=post.id).order_by('-created_at')[:2]
+            topic_context = []
+            for p in recent_posts:
+                topic_context.append({
+                    "role": "system",
+                    "content": f"Recent topic discussion - {p.created_by.name}: {p.content}"
+                })
+            
+            # Combine topic context + current post conversation
+            full_context = topic_context + conversation_history
 
             # Step 1: Let AI choose persona(s)
-            selected_personas = choose_persona_ai(data["content"], conversation_history)
+            selected_personas = choose_persona_ai(data["content"], full_context)
             print(selected_personas)
 
             if selected_personas:
@@ -87,12 +114,11 @@ class ChatConsumer(WebsocketConsumer):
                 }))
 
             # Step 2: Generate their responses
-            ai_responses = get_ai_responses(selected_personas, conversation_history)
+            ai_responses = get_ai_responses(selected_personas, full_context)
 
             print(ai_responses)
             for ai_response in ai_responses:
                 # Get the AI user from the database based on the persona username
-                from .models import User
                 ai_user = User.objects.get(
                     name=ai_response['persona']['username'],
                     type='ai'

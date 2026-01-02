@@ -25,7 +25,7 @@ export function PostReplies({ post }: PostRepliesProps) {
   const shouldFetchComments = showReplies || aiThinkingPosts.has(post.id);
   const { data: commentData } = getCommentsForPost(post.id.toString(), {
     enabled: shouldFetchComments,
-    refetchInterval: aiThinkingPosts.has(post.id) ? 1000 : false, // Poll every second when AI is thinking
+    refetchInterval: aiThinkingPosts.has(post.id) ? 500 : false, // Poll every 500ms when AI is thinking for faster updates
   });
 
   const repliesForPost = useMemo(() => {

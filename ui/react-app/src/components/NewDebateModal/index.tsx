@@ -61,7 +61,7 @@ export function NewDebateModal({ isOpen, onClose }: NewDebateModalProps) {
 
     createPostMutation.mutate({
       content: content.trim(),
-      created_by: 2, // Assuming user ID 2 is the current user
+      created_by: 1, // User ID 1 with username "You"
       topic: selectedTopicId,
     });
   };

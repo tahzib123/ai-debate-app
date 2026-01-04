@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../../api/requests/axios/instance";
-import type { ITopicDetail, IPost } from "../../types/DTO/getPosts";
+import type { IPost } from "../../types/DTO/getPosts";
 import { useTopics } from "../../api/requests/getPosts";
 import { useGlobalStore } from "../../store/globalStore";
 

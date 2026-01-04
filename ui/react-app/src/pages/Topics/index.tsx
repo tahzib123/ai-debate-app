@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { Layout } from "../../layouts/main";
 import { TopicBrowser } from "../../components/TopicBrowser";
-import { useTopics, usePosts } from "../../api/requests/getPosts";
+import { usePosts } from "../../api/requests/getPosts";
 import { useModal } from "../../providers/ModalProvider";
 import type { ITopicDetail } from "../../types/DTO/getPosts";
 
 export function Topics() {
   const [selectedTopic, setSelectedTopic] = useState<ITopicDetail | null>(null);
-  const { data: topics = [], isLoading: topicsLoading } = useTopics();
   const { data: posts = [], isLoading: postsLoading } = usePosts(
     undefined,
     selectedTopic?.id
@@ -77,12 +76,13 @@ export function Topics() {
                   )}
 
                   <div className="flex items-center gap-4 text-xs text-gray-500">
-                    {selectedTopic.activity_score > 0 && (
-                      <span className="flex items-center gap-1">
-                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                        Active
-                      </span>
-                    )}
+                    {selectedTopic.activity_score ||
+                      (0 > 0 && (
+                        <span className="flex items-center gap-1">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                          Active
+                        </span>
+                      ))}
                     {selectedTopic.created_at && (
                       <span>
                         Created{" "}
@@ -187,29 +187,6 @@ export function Topics() {
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgb(51, 65, 85, 0.3);
-          border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgb(100, 116, 139, 0.6);
-          border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgb(100, 116, 139, 0.8);
-        }
-        .line-clamp-2 {
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-      `}</style>
     </Layout>
   );
 }

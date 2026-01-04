@@ -1,42 +1,8 @@
-import { useState, useEffect, useRef } from "react";
-import { Link, useLocation } from "react-router";
+import { useState } from "react";
+import { Link } from "react-router";
 
 export function Navbar() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  const location = useLocation();
-  const searchRef = useRef<HTMLDivElement>(null);
-
-  // Close search results when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        searchRef.current &&
-        !searchRef.current.contains(event.target as Node)
-      ) {
-        setShowSearchResults(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  // Show/hide search results based on query
-  useEffect(() => {
-    setShowSearchResults(searchQuery.length > 0);
-  }, [searchQuery]);
-
-  const isActive = (path: string) => location.pathname === path;
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      setShowSearchResults(false);
-      // You can add navigation to a dedicated search page here if needed
-    }
-  };
 
   return (
     <nav className="sticky top-0 z-50">

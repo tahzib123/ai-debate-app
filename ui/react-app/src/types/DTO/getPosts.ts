@@ -10,6 +10,7 @@ export interface ITopicDetail {
   id: number;
   name: string;
   description: string;
+  created_at: string;
   post_count?: number;
   is_active?: boolean;
   activity_score?: number;

@@ -1,5 +1,4 @@
 import { Link, useLocation, useSearchParams } from "react-router";
-import { TrendingPosts } from "../TrendingPosts";
 import { useTopics } from "../../api/requests/getPosts";
 import { useModal } from "../../providers/ModalProvider";
 

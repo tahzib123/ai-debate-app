@@ -129,7 +129,7 @@ export function TopicBrowser({
       {isLoading ? (
         <LoadingSkeleton />
       ) : filteredAndSortedTopics.length > 0 ? (
-        <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
+        <div className="space-y-3 max-h-96 overflow-y-auto">
           {filteredAndSortedTopics.map((topic) => (
             <div
               key={topic.id}
@@ -144,7 +144,7 @@ export function TopicBrowser({
                 <h4 className="font-medium text-white group-hover:text-blue-400 transition-colors">
                   {topic.name}
                 </h4>
-                {topic.post_count > 0 && (
+                {topic.post_count && topic.post_count > 0 && (
                   <span className="text-xs bg-slate-700 text-gray-300 px-2 py-1 rounded-full">
                     {topic.post_count} posts
                   </span>
@@ -158,7 +158,7 @@ export function TopicBrowser({
               )}
 
               <div className="flex items-center gap-2 text-xs text-gray-500">
-                {topic.activity_score > 0 && (
+                {topic.activity_score && topic.activity_score > 0 && (
                   <span className="flex items-center gap-1">
                     <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
                     Active
@@ -203,29 +203,6 @@ export function TopicBrowser({
           )}
         </div>
       )}
-
-      <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgb(51, 65, 85, 0.3);
-          border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgb(100, 116, 139, 0.6);
-          border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgb(100, 116, 139, 0.8);
-        }
-        .line-clamp-2 {
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-      `}</style>
     </div>
   );
 }
